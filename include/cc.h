@@ -1,11 +1,10 @@
 #include "tocabi_lib/robot_data.h"
 #include "wholebody_functions.h"
-#include "geometry_msgs/Pose.h"
-#include "geometry_msgs/Vector3.h"
-#include <tf/tf.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
+#include <random>
+#include <cmath>
+
+#include <ros/ros.h>
+#include <std_msgs/Float32MultiArray.h>
 
 
 class CustomController
@@ -20,28 +19,62 @@ public:
     void computeFast();
     void computePlanner();
     void copyRobotData(RobotData &rd_l);
-    void PublishHapticData();
-
-    void HapticPoseCallback(const geometry_msgs::PoseConstPtr &msg);
-    Eigen::Matrix3d Quat2rotmatrix(double q0, double q1, double q2, double q3);
-    float PositionMapping( float haptic_pos, int i);
-
+    
+    void initVariable();
+    void processNoise();
+    void writeDesiredPos();
+    
     RobotData &rd_;
     RobotData rd_cc_;
 
-    ros::NodeHandle nh_cc_;
-    ros::CallbackQueue queue_cc_;
-    ros::Subscriber haptic_pose_sub_;
-    ros::Publisher haptic_force_pub_;
+    bool is_on_robot_ = false;
+    bool is_write_file_ = true;
+    std::ofstream writeFile;
+
+    Eigen::Matrix<double, MODEL_DOF, 1> q_dot_lpf_;
+
+    Eigen::Matrix<double, MODEL_DOF, 1> q_init_;
+    Eigen::Matrix<double, MODEL_DOF, 1> q_noise_;
+    Eigen::Matrix<double, MODEL_DOF, 1> q_noise_pre_;
+    Eigen::Matrix<double, MODEL_DOF, 1> q_vel_noise_;
+
+    Eigen::Matrix<double, MODEL_DOF, 1> torque_init_;
+    Eigen::Matrix<double, MODEL_DOF, 1> torque_desired_;
+    Eigen::Matrix<double, MODEL_DOF, 1> torque_bound_;
+
+    Eigen::Matrix<double, MODEL_DOF, MODEL_DOF> kp_;
+    Eigen::Matrix<double, MODEL_DOF, MODEL_DOF> kv_;
+
+    float start_time_;
+    float time_inference_pre_ = 0.0;
+
+    double time_cur_;
+    double time_pre_;
+
+    ros::NodeHandle nh_;
     
-    Eigen::Vector3d haptic_pos_;
-    Eigen::Vector4d haptic_ori_;
-    Eigen::Matrix3d haptic_orientation_;
+    ros::Subscriber arm_sub_;   
+    void ArmCallback(const std_msgs::Float32MultiArray::ConstPtr &msg);
 
-    //WholebodyController &wbc_;
-    //TaskCommand tc;
+    Eigen::Matrix<double, 16, 1> arm_desired_pos_;
 
-    double haptic_force_[3];
+    double l_arm_shoulder1 = 0.0;
+    double l_arm_shoulder2 = 0.0;
+    double l_arm_shoulder3 = 0.0;
+    double l_arm_arm = 0.0;
+    double l_arm_elbow = 0.0;
+    double l_arm_forearm = 0.0;
+    double l_arm_wrist1 = 0.0;
+    double l_arm_wrist2 = 0.0;
+
+    double r_arm_shoulder1 = 0.0;
+    double r_arm_shoulder2 = 0.0;
+    double r_arm_shoulder3 = 0.0;
+    double r_arm_arm = 0.0;
+    double r_arm_elbow = 0.0;
+    double r_arm_forearm = 0.0;
+    double r_arm_wrist1 = 0.0;
+    double r_arm_wrist2 = 0.0;
 
 private:
     Eigen::VectorQd ControlVal_;
